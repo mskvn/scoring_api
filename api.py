@@ -62,7 +62,7 @@ def method_handler(request, ctx, store):
     if not method_request.is_valid():
         return method_request.errors_str(), INVALID_REQUEST
 
-    response, code = method_request.do_request()
+    response, code = method_request.do_request(base_request, ctx, store)
     return response, code
 
 

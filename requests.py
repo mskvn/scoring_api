@@ -1,5 +1,7 @@
 import inspect
 
+import api
+import scoring
 from fields import *
 
 ADMIN_LOGIN = "admin"
@@ -9,19 +11,23 @@ class Request:
     def __init__(self, request_body):
         self._request_body = request_body
         self._errors = []
+        self._fields = []
+        self._init_request_fields(['is_admin'])
         self._base_validate()
 
     def is_valid(self):
         return len(self._errors) == 0
 
     def _base_validate(self):
-        attributes = inspect.getmembers(self, lambda a: not (inspect.isroutine(a)))
-        fields = [a for a in attributes if not ('_' in a[0])]
-        for field, _ in fields:
+        for field in self._fields:
             try:
                 setattr(self, field, self._request_body.get(field, None))
             except (ValueError, TypeError) as e:
                 self._errors.append(str(e))
+
+    def _init_request_fields(self, exclude_fields):
+        attributes = inspect.getmembers(self, lambda a: not (inspect.isroutine(a)))
+        self._fields = [a[0] for a in attributes if not a[0].startswith('_') and a[0] not in exclude_fields]
 
     def errors_str(self):
         return ", ".join(self._errors)
@@ -60,8 +66,20 @@ class OnlineScoreRequest(Request):
         self._validate()
 
     def _validate(self):
-        if not ((self.phone and self.email) or (self.first_name and self.last_name) or (self.gender and self.birthday)):
-            self._errors.append('One of pairs phone-email or first_name-last_name or gender-birthday')
+        if not (
+                (self.phone is not None and self.email is not None) or
+                (self.first_name is not None and self.last_name is not None) or
+                (self.gender is not None and self.birthday is not None)
+        ):
+            self._errors.append(
+                'One of pairs phone-email or first_name-last_name or gender-birthday should not be empty')
 
-    def do_request(self):
-        pass
+    def do_request(self, request, ctx, store):
+        if request.is_admin:
+            score = 42
+        else:
+            score = scoring.get_score(store, self.phone, self.email, self.birthday, self.gender, self.first_name,
+                                      self.last_name)
+
+        ctx["has"] = [f for f in self._fields if getattr(self, f) is not None]
+        return {"score": score}, api.OK

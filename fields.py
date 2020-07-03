@@ -27,7 +27,7 @@ class CharField(Field):
         super()._validate(value)
         if value:
             if not isinstance(value, str):
-                raise TypeError('Must be a str')
+                raise TypeError(f'{self.name} must be a str')
         instance.__dict__[self.name] = value
 
 
@@ -39,7 +39,7 @@ class ArgumentsField(Field):
         super()._validate(value)
         if value:
             if not isinstance(value, dict):
-                raise TypeError('Must be a dict')
+                raise TypeError(f'{self.name} must be a dict')
         instance.__dict__[self.name] = value
 
 
@@ -51,9 +51,9 @@ class EmailField(CharField):
         super()._validate(value)
         if value:
             if not isinstance(value, str):
-                raise TypeError('Must be a str')
+                raise TypeError(f'{self.name} must be a str')
             if '@' not in value:
-                raise ValueError('Value must contain @')
+                raise ValueError(f'{self.name} must contain @')
         instance.__dict__[self.name] = value
 
 
@@ -63,12 +63,12 @@ class PhoneField(Field):
 
     def __set__(self, instance, value):
         if value:
-            if not isinstance(value, str) or not isinstance(value, int):
-                raise TypeError('Must be a str or int')
+            if not isinstance(value, str) and not isinstance(value, int):
+                raise TypeError(f'{self.name} must be a str or int')
             if len(str(value)) != 11:
-                raise ValueError('Values length should equal 11')
+                raise ValueError(f'{self.name} length should equal 11')
             if not str(value).startswith('7'):
-                raise ValueError('Values should start with 7')
+                raise ValueError(f'{self.name} should start with 7')
         instance.__dict__[self.name] = value
 
 
@@ -80,9 +80,9 @@ class DateField(Field):
         super()._validate(value)
         if value:
             try:
-                return datetime.datetime.strptime(value, '%d-%m-%Y')
+                return datetime.datetime.strptime(value, '%d.%m.%Y')
             except ValueError:
-                raise ValueError("Incorrect date format, should be YYYY.MM.DD")
+                raise ValueError(f"Incorrect date format of {self.name}, should be DD.MM.YYYY")
 
     def __set__(self, instance, value):
         date = self._validate(value)
@@ -97,8 +97,8 @@ class BirthDayField(DateField):
         date = super()._validate(value)
         if date:
             min_year = datetime.datetime.now().year - 70
-            if date.year > min_year:
-                raise ValueError(f"Incorrect date: year should be more then {min_year}")
+            if date.year < min_year:
+                raise ValueError(f"Incorrect {self.name}: year should be more then {min_year}")
         instance.__dict__[self.name] = date
 
 
@@ -111,7 +111,7 @@ class GenderField(Field):
         if value:
             valid_values = [0, 1, 2]
             if value not in valid_values:
-                raise ValueError(f'Incorrect gender. Valid values: {valid_values}')
+                raise ValueError(f'Incorrect {self.name}. Valid values: {valid_values}')
         instance.__dict__[self.name] = value
 
 
@@ -123,5 +123,5 @@ class ClientIDsField(Field):
         super()._validate(value)
         if value:
             if not isinstance(value, list):
-                raise TypeError('Must be a list')
+                raise TypeError(f'{self.name} must be a list')
         instance.__dict__[self.name] = value
