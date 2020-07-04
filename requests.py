@@ -49,8 +49,15 @@ class ClientsInterestsRequest(Request):
     client_ids = ClientIDsField(required=True, nullable=False)
     date = DateField(required=False, nullable=True)
 
-    def do_request(self):
-        pass
+    def __init__(self, request_body):
+        super().__init__(request_body)
+
+    def do_request(self, request, ctx, store):
+        clients_interests = dict()
+        for cid in self.client_ids:
+            clients_interests[str(cid)] = scoring.get_interests(store, cid)
+        ctx['nclients'] = len(self.client_ids)
+        return clients_interests, api.OK
 
 
 class OnlineScoreRequest(Request):

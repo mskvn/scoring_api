@@ -124,4 +124,7 @@ class ClientIDsField(Field):
         if value:
             if not isinstance(value, list):
                 raise TypeError(f'{self.name} must be a list')
+            else:
+                if not all(isinstance(x, int) for x in value):
+                    raise ValueError(f'All values from {self.name} should be integers')
         instance.__dict__[self.name] = value
