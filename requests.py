@@ -1,34 +1,35 @@
-import inspect
-
 import api
 import scoring
-from fields import CharField, ArgumentsField, ClientIDsField, DateField, EmailField, GenderField, PhoneField, \
-    BirthDayField
 from exceptions import ValidationError
+from fields import CharField, ArgumentsField, ClientIDsField, DateField, EmailField, GenderField, PhoneField, \
+    BirthDayField, Field
 
 ADMIN_LOGIN = "admin"
 
 
-class Request:
+class RequestMeta(type):
+    def __new__(mcs, name, bases, attrs):
+        cls = super(RequestMeta, mcs).__new__(mcs, name, bases, attrs)
+        fields = [a for a, v in attrs.items() if isinstance(v, Field)]
+        cls.fields = fields
+        return cls
+
+
+class Request(metaclass=RequestMeta):
+
     def __init__(self, request_body):
         self._request_body = request_body
         self._errors = []
-        self._fields = []
-        self._init_request_fields(['is_admin'])
 
     def is_valid(self):
         return len(self._errors) == 0
 
     def validate(self):
-        for field in self._fields:
+        for field in self.fields:
             try:
                 setattr(self, field, self._request_body.get(field, None))
             except ValidationError as e:
                 self._errors.append(str(e))
-
-    def _init_request_fields(self, exclude_fields):
-        attributes = inspect.getmembers(self, lambda a: not (inspect.isroutine(a)))
-        self._fields = [a[0] for a in attributes if not a[0].startswith('_') and a[0] not in exclude_fields]
 
     def errors_str(self):
         return ", ".join(self._errors)
@@ -100,5 +101,5 @@ class OnlineScoreHandler:
                                       self.request.first_name,
                                       self.request.last_name)
 
-        ctx["has"] = [f for f in self.request._fields if getattr(self.request, f) is not None]
+        ctx["has"] = [f for f in self.request.fields if getattr(self.request, f) is not None]
         return {"score": score}, api.OK
