@@ -14,12 +14,11 @@ class Request:
         self._errors = []
         self._fields = []
         self._init_request_fields(['is_admin'])
-        self._base_validate()
 
     def is_valid(self):
         return len(self._errors) == 0
 
-    def _base_validate(self):
+    def validate(self):
         for field in self._fields:
             try:
                 setattr(self, field, self._request_body.get(field, None))
@@ -66,11 +65,8 @@ class OnlineScoreRequest(Request):
     birthday = BirthDayField(required=False, nullable=True)
     gender = GenderField(required=False, nullable=True)
 
-    def __init__(self, request_body):
-        super().__init__(request_body)
-        self._validate()
-
-    def _validate(self):
+    def validate(self):
+        super().validate()
         if not (
                 (self.phone is not None and self.email is not None) or
                 (self.first_name is not None and self.last_name is not None) or

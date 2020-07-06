@@ -51,6 +51,7 @@ def method_handler(request, ctx, store):
         "clients_interests": ClientsInterestsRequest,
     }
     base_request = BaseRequest(request["body"])
+    base_request.validate()
     if not base_request.is_valid():
         return base_request.errors_str(), INVALID_REQUEST
     if not check_auth(base_request):
@@ -60,6 +61,7 @@ def method_handler(request, ctx, store):
         return "Method Not Found", NOT_FOUND
 
     method_request = method(base_request.arguments)
+    method_request.validate()
     if not method_request.is_valid():
         return method_request.errors_str(), INVALID_REQUEST
 
