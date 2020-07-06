@@ -15,10 +15,10 @@ class Field:
         return instance.__dict__.get(self.name)
 
     def __set__(self, instance, value):
-        self._validate(value)
+        self.validate(value)
         instance.__dict__[self.name] = value
 
-    def _validate(self, value):
+    def validate(self, value):
         if self.required and value is None:
             raise ValidationError(f'{self.name} is required')
         if not self.nullable and not value:
@@ -27,8 +27,8 @@ class Field:
 
 class CharField(Field):
 
-    def _validate(self, value):
-        super()._validate(value)
+    def validate(self, value):
+        super().validate(value)
         if value:
             if not isinstance(value, str):
                 raise ValidationError(f'{self.name} must be a str')
@@ -36,8 +36,8 @@ class CharField(Field):
 
 class ArgumentsField(Field):
 
-    def _validate(self, value):
-        super()._validate(value)
+    def validate(self, value):
+        super().validate(value)
         if not value:
             return
         if not isinstance(value, dict):
@@ -46,8 +46,8 @@ class ArgumentsField(Field):
 
 class EmailField(CharField):
 
-    def _validate(self, value):
-        super()._validate(value)
+    def validate(self, value):
+        super().validate(value)
         if not value:
             return
         if not isinstance(value, str):
@@ -58,8 +58,8 @@ class EmailField(CharField):
 
 class PhoneField(Field):
 
-    def _validate(self, value):
-        super()._validate(value)
+    def validate(self, value):
+        super().validate(value)
         if not value:
             return
         if not isinstance(value, str) and not isinstance(value, int):
@@ -73,8 +73,8 @@ class PhoneField(Field):
 class DateField(Field):
     date_format = '%d.%m.%Y'
 
-    def _validate(self, value):
-        super()._validate(value)
+    def validate(self, value):
+        super().validate(value)
         if not value:
             return
         try:
@@ -85,8 +85,8 @@ class DateField(Field):
 
 class BirthDayField(DateField):
 
-    def _validate(self, value):
-        super()._validate(value)
+    def validate(self, value):
+        super().validate(value)
         if not value:
             return
         date = datetime.datetime.strptime(value, self.date_format)
@@ -97,8 +97,8 @@ class BirthDayField(DateField):
 
 class GenderField(Field):
 
-    def _validate(self, value):
-        super()._validate(value)
+    def validate(self, value):
+        super().validate(value)
         if not value:
             return
         valid_values = [0, 1, 2]
@@ -108,8 +108,8 @@ class GenderField(Field):
 
 class ClientIDsField(Field):
 
-    def _validate(self, value):
-        super()._validate(value)
+    def validate(self, value):
+        super().validate(value)
         if not value:
             return
         if not isinstance(value, list):
