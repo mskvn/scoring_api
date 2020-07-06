@@ -50,9 +50,6 @@ class ClientsInterestsRequest(Request):
     client_ids = ClientIDsField(required=True, nullable=False)
     date = DateField(required=False, nullable=True)
 
-    def __init__(self, request_body):
-        super().__init__(request_body)
-
     def do_request(self, request, ctx, store):
         clients_interests = dict()
         for cid in self.client_ids:
