@@ -49,11 +49,17 @@ class ClientsInterestsRequest(Request):
     client_ids = ClientIDsField(required=True, nullable=False)
     date = DateField(required=False, nullable=True)
 
-    def do_request(self, request, ctx, store):
+
+class ClientsInterestsHandler:
+
+    def __init__(self, request_body):
+        self.request = ClientsInterestsRequest(request_body)
+
+    def do_request(self, is_admin, ctx, store):
         clients_interests = dict()
-        for cid in self.client_ids:
+        for cid in self.request.client_ids:
             clients_interests[str(cid)] = scoring.get_interests(store, cid)
-        ctx['nclients'] = len(self.client_ids)
+        ctx['nclients'] = len(self.request.client_ids)
         return clients_interests, api.OK
 
 
@@ -75,12 +81,23 @@ class OnlineScoreRequest(Request):
             self._errors.append(
                 'One of pairs phone-email or first_name-last_name or gender-birthday should not be empty')
 
-    def do_request(self, request, ctx, store):
-        if request.is_admin:
+
+class OnlineScoreHandler:
+
+    def __init__(self, request_body):
+        self.request = OnlineScoreRequest(request_body)
+
+    def do_request(self, is_admin, ctx, store):
+        if is_admin:
             score = 42
         else:
-            score = scoring.get_score(store, self.phone, self.email, self.birthday, self.gender, self.first_name,
-                                      self.last_name)
+            score = scoring.get_score(store,
+                                      self.request.phone,
+                                      self.request.email,
+                                      self.request.birthday,
+                                      self.request.gender,
+                                      self.request.first_name,
+                                      self.request.last_name)
 
-        ctx["has"] = [f for f in self._fields if getattr(self, f) is not None]
+        ctx["has"] = [f for f in self.request._fields if getattr(self.request, f) is not None]
         return {"score": score}, api.OK
