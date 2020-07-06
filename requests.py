@@ -2,7 +2,8 @@ import inspect
 
 import api
 import scoring
-from fields import *
+from fields import CharField, ArgumentsField, ClientIDsField, DateField, EmailField, GenderField, PhoneField, \
+    BirthDayField
 
 ADMIN_LOGIN = "admin"
 

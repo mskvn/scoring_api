@@ -4,8 +4,9 @@ import logging
 import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from optparse import OptionParser
+import datetime
 
-from requests import *
+from requests import OnlineScoreRequest, ClientsInterestsRequest, BaseRequest
 
 SALT = "Otus"
 ADMIN_SALT = "42"
