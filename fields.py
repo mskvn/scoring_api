@@ -1,5 +1,7 @@
 import datetime
 
+from exceptions import ValidationError
+
 
 class Field:
     def __init__(self, required, nullable):
@@ -14,9 +16,9 @@ class Field:
 
     def _validate(self, value):
         if self.required and value is None:
-            raise ValueError(f'{self.name} is required')
+            raise ValidationError(f'{self.name} is required')
         if not self.nullable and not value:
-            raise ValueError(f'{self.name} should not be empty')
+            raise ValidationError(f'{self.name} should not be empty')
 
 
 class CharField(Field):
@@ -27,7 +29,7 @@ class CharField(Field):
         super()._validate(value)
         if value:
             if not isinstance(value, str):
-                raise TypeError(f'{self.name} must be a str')
+                raise ValidationError(f'{self.name} must be a str')
         instance.__dict__[self.name] = value
 
 
@@ -39,7 +41,7 @@ class ArgumentsField(Field):
         super()._validate(value)
         if value:
             if not isinstance(value, dict):
-                raise TypeError(f'{self.name} must be a dict')
+                raise ValidationError(f'{self.name} must be a dict')
         instance.__dict__[self.name] = value
 
 
@@ -51,9 +53,9 @@ class EmailField(CharField):
         super()._validate(value)
         if value:
             if not isinstance(value, str):
-                raise TypeError(f'{self.name} must be a str')
+                raise ValidationError(f'{self.name} must be a str')
             if '@' not in value:
-                raise ValueError(f'{self.name} must contain @')
+                raise ValidationError(f'{self.name} must contain @')
         instance.__dict__[self.name] = value
 
 
@@ -64,11 +66,11 @@ class PhoneField(Field):
     def __set__(self, instance, value):
         if value:
             if not isinstance(value, str) and not isinstance(value, int):
-                raise TypeError(f'{self.name} must be a str or int')
+                raise ValidationError(f'{self.name} must be a str or int')
             if len(str(value)) != 11:
-                raise ValueError(f'{self.name} length should equal 11')
+                raise ValidationError(f'{self.name} length should equal 11')
             if not str(value).startswith('7'):
-                raise ValueError(f'{self.name} should start with 7')
+                raise ValidationError(f'{self.name} should start with 7')
         instance.__dict__[self.name] = value
 
 
@@ -82,7 +84,7 @@ class DateField(Field):
             try:
                 return datetime.datetime.strptime(value, '%d.%m.%Y')
             except ValueError:
-                raise ValueError(f"Incorrect date format of {self.name}, should be DD.MM.YYYY")
+                raise ValidationError(f"Incorrect date format of {self.name}, should be DD.MM.YYYY")
 
     def __set__(self, instance, value):
         date = self._validate(value)
@@ -98,7 +100,7 @@ class BirthDayField(DateField):
         if date:
             min_year = datetime.datetime.now().year - 70
             if date.year < min_year:
-                raise ValueError(f"Incorrect {self.name}: year should be more then {min_year}")
+                raise ValidationError(f"Incorrect {self.name}: year should be more then {min_year}")
         instance.__dict__[self.name] = date
 
 
@@ -111,7 +113,7 @@ class GenderField(Field):
         if value:
             valid_values = [0, 1, 2]
             if value not in valid_values:
-                raise ValueError(f'Incorrect {self.name}. Valid values: {valid_values}')
+                raise ValidationError(f'Incorrect {self.name}. Valid values: {valid_values}')
         instance.__dict__[self.name] = value
 
 
@@ -123,8 +125,8 @@ class ClientIDsField(Field):
         super()._validate(value)
         if value:
             if not isinstance(value, list):
-                raise TypeError(f'{self.name} must be a list')
+                raise ValidationError(f'{self.name} must be a list')
             else:
                 if not all(isinstance(x, int) for x in value):
-                    raise ValueError(f'All values from {self.name} should be integers')
+                    raise ValidationError(f'All values from {self.name} should be integers')
         instance.__dict__[self.name] = value

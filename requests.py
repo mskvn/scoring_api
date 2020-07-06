@@ -4,6 +4,7 @@ import api
 import scoring
 from fields import CharField, ArgumentsField, ClientIDsField, DateField, EmailField, GenderField, PhoneField, \
     BirthDayField
+from exceptions import ValidationError
 
 ADMIN_LOGIN = "admin"
 
@@ -22,7 +23,7 @@ class Request:
         for field in self._fields:
             try:
                 setattr(self, field, self._request_body.get(field, None))
-            except (ValueError, TypeError) as e:
+            except ValidationError as e:
                 self._errors.append(str(e))
 
     def _init_request_fields(self, exclude_fields):
