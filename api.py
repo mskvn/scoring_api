@@ -60,12 +60,10 @@ def method_handler(request, ctx, store):
     if not method:
         return "Method Not Found", NOT_FOUND
 
-    handler = method(base_request.arguments)
-    handler.request.validate()
-    if not handler.request.is_valid():
-        return handler.request.errors_str(), INVALID_REQUEST
-
-    response, code = handler.do_request(base_request.is_admin, ctx, store)
+    response, code = method().validate_handle(is_admin=base_request.is_admin,
+                                              request=method.request_type(base_request.arguments),
+                                              ctx=ctx,
+                                              store=store)
     return response, code
 
 

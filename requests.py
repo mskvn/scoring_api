@@ -18,21 +18,21 @@ class RequestMeta(type):
 class Request(metaclass=RequestMeta):
 
     def __init__(self, request_body):
-        self._request_body = request_body
-        self._errors = []
+        self.request_body = request_body
+        self.errors = []
 
     def is_valid(self):
-        return len(self._errors) == 0
+        return not self.errors
 
     def validate(self):
         for field in self.fields:
             try:
-                setattr(self, field, self._request_body.get(field, None))
+                setattr(self, field, self.request_body.get(field, None))
             except ValidationError as e:
-                self._errors.append(str(e))
+                self.errors.append(str(e))
 
     def errors_str(self):
-        return ", ".join(self._errors)
+        return ", ".join(self.errors)
 
 
 class BaseRequest(Request):
@@ -47,21 +47,30 @@ class BaseRequest(Request):
         return self.login == ADMIN_LOGIN
 
 
+class RequestHandler:
+    def validate_handle(self, is_admin, request, ctx, store):
+        request.validate()
+        if not request.is_valid():
+            return request.errors_str(), api.INVALID_REQUEST
+        return self.handle(request, request, ctx, store)
+
+    def handle(self, is_admin, request, ctx, store):
+        return {}, api.OK
+
+
 class ClientsInterestsRequest(Request):
     client_ids = ClientIDsField(required=True, nullable=False)
     date = DateField(required=False, nullable=True)
 
 
-class ClientsInterestsHandler:
+class ClientsInterestsHandler(RequestHandler):
+    request_type = ClientsInterestsRequest
 
-    def __init__(self, request_body):
-        self.request = ClientsInterestsRequest(request_body)
-
-    def do_request(self, is_admin, ctx, store):
+    def handle(self, is_admin, request, ctx, store):
         clients_interests = dict()
-        for cid in self.request.client_ids:
+        for cid in request.client_ids:
             clients_interests[str(cid)] = scoring.get_interests(store, cid)
-        ctx['nclients'] = len(self.request.client_ids)
+        ctx['nclients'] = len(request.client_ids)
         return clients_interests, api.OK
 
 
@@ -80,26 +89,24 @@ class OnlineScoreRequest(Request):
                 (self.first_name is not None and self.last_name is not None) or
                 (self.gender is not None and self.birthday is not None)
         ):
-            self._errors.append(
+            self.errors.append(
                 'One of pairs phone-email or first_name-last_name or gender-birthday should not be empty')
 
 
-class OnlineScoreHandler:
+class OnlineScoreHandler(RequestHandler):
+    request_type = OnlineScoreRequest
 
-    def __init__(self, request_body):
-        self.request = OnlineScoreRequest(request_body)
-
-    def do_request(self, is_admin, ctx, store):
+    def handle(self, is_admin, request, ctx, store):
         if is_admin:
             score = 42
         else:
             score = scoring.get_score(store,
-                                      self.request.phone,
-                                      self.request.email,
-                                      self.request.birthday,
-                                      self.request.gender,
-                                      self.request.first_name,
-                                      self.request.last_name)
+                                      request.phone,
+                                      request.email,
+                                      request.birthday,
+                                      request.gender,
+                                      request.first_name,
+                                      request.last_name)
 
-        ctx["has"] = [f for f in self.request.fields if getattr(self.request, f) is not None]
+        ctx["has"] = [f for f in request.fields if getattr(request, f) is not None]
         return {"score": score}, api.OK
