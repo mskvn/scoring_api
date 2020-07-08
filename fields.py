@@ -29,18 +29,15 @@ class CharField(Field):
 
     def validate(self, value):
         super().validate(value)
-        if value:
-            if not isinstance(value, str):
-                raise ValidationError(f'{self.name} must be a str')
+        if value and not isinstance(value, str):
+            raise ValidationError(f'{self.name} must be a str')
 
 
 class ArgumentsField(Field):
 
     def validate(self, value):
         super().validate(value)
-        if not value:
-            return
-        if not isinstance(value, dict):
+        if value and not isinstance(value, dict):
             raise ValidationError(f'{self.name} must be a dict')
 
 
