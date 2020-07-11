@@ -1,17 +1,14 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-import abc
-import json
 import datetime
-import logging
 import hashlib
+import json
+import logging
 import uuid
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from optparse import OptionParser
-from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
+
+from requests import OnlineScoreHandler, ClientsInterestsHandler, BaseRequest
 
 SALT = "Otus"
-ADMIN_LOGIN = "admin"
 ADMIN_SALT = "42"
 OK = 200
 BAD_REQUEST = 400
@@ -36,76 +33,37 @@ GENDERS = {
 }
 
 
-class CharField(object):
-    pass
-
-
-class ArgumentsField(object):
-    pass
-
-
-class EmailField(CharField):
-    pass
-
-
-class PhoneField(object):
-    pass
-
-
-class DateField(object):
-    pass
-
-
-class BirthDayField(object):
-    pass
-
-
-class GenderField(object):
-    pass
-
-
-class ClientIDsField(object):
-    pass
-
-
-class ClientsInterestsRequest(object):
-    client_ids = ClientIDsField(required=True)
-    date = DateField(required=False, nullable=True)
-
-
-class OnlineScoreRequest(object):
-    first_name = CharField(required=False, nullable=True)
-    last_name = CharField(required=False, nullable=True)
-    email = EmailField(required=False, nullable=True)
-    phone = PhoneField(required=False, nullable=True)
-    birthday = BirthDayField(required=False, nullable=True)
-    gender = GenderField(required=False, nullable=True)
-
-
-class MethodRequest(object):
-    account = CharField(required=False, nullable=True)
-    login = CharField(required=True, nullable=True)
-    token = CharField(required=True, nullable=True)
-    arguments = ArgumentsField(required=True, nullable=True)
-    method = CharField(required=True, nullable=False)
-
-    @property
-    def is_admin(self):
-        return self.login == ADMIN_LOGIN
-
-
 def check_auth(request):
     if request.is_admin:
-        digest = hashlib.sha512(datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).hexdigest()
+        msg = (datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).encode('utf-8')
+        digest = hashlib.sha512(msg).hexdigest()
     else:
-        digest = hashlib.sha512(request.account + request.login + SALT).hexdigest()
+        msg = (request.account + request.login + SALT).encode('utf-8')
+        digest = hashlib.sha512(msg).hexdigest()
     if digest == request.token:
         return True
     return False
 
 
 def method_handler(request, ctx, store):
-    response, code = None, None
+    methods_map = {
+        "online_score": OnlineScoreHandler,
+        "clients_interests": ClientsInterestsHandler,
+    }
+    base_request = BaseRequest(request["body"])
+    base_request.validate()
+    if not base_request.is_valid():
+        return base_request.errors_str(), INVALID_REQUEST
+    if not check_auth(base_request):
+        return None, FORBIDDEN
+    method = methods_map.get(base_request.method)
+    if not method:
+        return "Method Not Found", NOT_FOUND
+
+    response, code = method().validate_handle(is_admin=base_request.is_admin,
+                                              request=method.request_type(base_request.arguments),
+                                              ctx=ctx,
+                                              store=store)
     return response, code
 
 
@@ -134,7 +92,7 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
             if path in self.router:
                 try:
                     response, code = self.router[path]({"body": request, "headers": self.headers}, context, self.store)
-                except Exception, e:
+                except Exception as e:
                     logging.exception("Unexpected error: %s" % e)
                     code = INTERNAL_ERROR
             else:
@@ -149,7 +107,7 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
             r = {"error": response or ERRORS.get(code, "Unknown Error"), "code": code}
         context.update(r)
         logging.info(context)
-        self.wfile.write(json.dumps(r))
+        self.wfile.write(json.dumps(r).encode('utf-8'))
         return
 
 
