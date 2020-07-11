@@ -1,7 +1,10 @@
 import datetime
 import functools
 import hashlib
+import json
+import sys
 import unittest
+from unittest.mock import patch
 
 import api
 import requests
@@ -13,7 +16,11 @@ def cases(cases):
         def wrapper(*args):
             for c in cases:
                 new_args = args + (c if isinstance(c, tuple) else (c,))
-                f(*new_args)
+                try:
+                    f(*new_args)
+                except Exception as e:
+                    raise type(e)(str(e) + f'\nFailed example: {new_args[1]}'
+                                  ).with_traceback(sys.exc_info()[2])
 
         return wrapper
 
@@ -26,8 +33,8 @@ class TestSuite(unittest.TestCase):
         self.headers = {}
         self.settings = {}
 
-    def get_response(self, request):
-        return api.method_handler({"body": request, "headers": self.headers}, self.context, self.settings)
+    def get_response(self, request, store=None):
+        return api.method_handler({"body": request, "headers": self.headers}, self.context, store)
 
     def set_valid_auth(self, request):
         if request.get("login") == requests.ADMIN_LOGIN:
@@ -131,10 +138,13 @@ class TestSuite(unittest.TestCase):
         {"client_ids": [1, 2], "date": "19.07.2017"},
         {"client_ids": [0]},
     ])
-    def test_ok_interests_request(self, arguments):
+    @patch('store.Store')
+    def test_ok_interests_request(self, arguments, store):
         request = {"account": "horns&hoofs", "login": "h&f", "method": "clients_interests", "arguments": arguments}
         self.set_valid_auth(request)
-        response, code = self.get_response(request)
+        store_mock = store()
+        store_mock.get.return_value = json.dumps(["cars", "pets"])
+        response, code = self.get_response(request, store_mock)
         self.assertEqual(api.OK, code, arguments)
         self.assertEqual(len(arguments["client_ids"]), len(response))
         self.assertTrue(all(v and isinstance(v, list) and all(isinstance(i, (bytes, str)) for i in v)
