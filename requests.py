@@ -1,36 +1,38 @@
-import inspect
-
 import api
 import scoring
-from fields import *
+from exceptions import ValidationError
+from fields import CharField, ArgumentsField, ClientIDsField, DateField, EmailField, GenderField, PhoneField, \
+    BirthDayField, Field
 
 ADMIN_LOGIN = "admin"
 
 
-class Request:
+class RequestMeta(type):
+    def __new__(mcs, name, bases, attrs):
+        cls = super(RequestMeta, mcs).__new__(mcs, name, bases, attrs)
+        fields = [a for a, v in attrs.items() if isinstance(v, Field)]
+        cls.fields = fields
+        return cls
+
+
+class Request(metaclass=RequestMeta):
+
     def __init__(self, request_body):
-        self._request_body = request_body
-        self._errors = []
-        self._fields = []
-        self._init_request_fields(['is_admin'])
-        self._base_validate()
+        self.request_body = request_body
+        self.errors = []
 
     def is_valid(self):
-        return len(self._errors) == 0
+        return not self.errors
 
-    def _base_validate(self):
-        for field in self._fields:
+    def validate(self):
+        for field in self.fields:
             try:
-                setattr(self, field, self._request_body.get(field, None))
-            except (ValueError, TypeError) as e:
-                self._errors.append(str(e))
-
-    def _init_request_fields(self, exclude_fields):
-        attributes = inspect.getmembers(self, lambda a: not (inspect.isroutine(a)))
-        self._fields = [a[0] for a in attributes if not a[0].startswith('_') and a[0] not in exclude_fields]
+                setattr(self, field, self.request_body.get(field, None))
+            except ValidationError as e:
+                self.errors.append(str(e))
 
     def errors_str(self):
-        return ", ".join(self._errors)
+        return ", ".join(self.errors)
 
 
 class BaseRequest(Request):
@@ -45,18 +47,30 @@ class BaseRequest(Request):
         return self.login == ADMIN_LOGIN
 
 
+class RequestHandler:
+    def validate_handle(self, is_admin, request, ctx, store):
+        request.validate()
+        if not request.is_valid():
+            return request.errors_str(), api.INVALID_REQUEST
+        return self.handle(request, request, ctx, store)
+
+    def handle(self, is_admin, request, ctx, store):
+        return {}, api.OK
+
+
 class ClientsInterestsRequest(Request):
     client_ids = ClientIDsField(required=True, nullable=False)
     date = DateField(required=False, nullable=True)
 
-    def __init__(self, request_body):
-        super().__init__(request_body)
 
-    def do_request(self, request, ctx, store):
+class ClientsInterestsHandler(RequestHandler):
+    request_type = ClientsInterestsRequest
+
+    def handle(self, is_admin, request, ctx, store):
         clients_interests = dict()
-        for cid in self.client_ids:
+        for cid in request.client_ids:
             clients_interests[str(cid)] = scoring.get_interests(store, cid)
-        ctx['nclients'] = len(self.client_ids)
+        ctx['nclients'] = len(request.client_ids)
         return clients_interests, api.OK
 
 
@@ -68,25 +82,31 @@ class OnlineScoreRequest(Request):
     birthday = BirthDayField(required=False, nullable=True)
     gender = GenderField(required=False, nullable=True)
 
-    def __init__(self, request_body):
-        super().__init__(request_body)
-        self._validate()
-
-    def _validate(self):
+    def validate(self):
+        super().validate()
         if not (
                 (self.phone is not None and self.email is not None) or
                 (self.first_name is not None and self.last_name is not None) or
                 (self.gender is not None and self.birthday is not None)
         ):
-            self._errors.append(
+            self.errors.append(
                 'One of pairs phone-email or first_name-last_name or gender-birthday should not be empty')
 
-    def do_request(self, request, ctx, store):
-        if request.is_admin:
+
+class OnlineScoreHandler(RequestHandler):
+    request_type = OnlineScoreRequest
+
+    def handle(self, is_admin, request, ctx, store):
+        if is_admin:
             score = 42
         else:
-            score = scoring.get_score(store, self.phone, self.email, self.birthday, self.gender, self.first_name,
-                                      self.last_name)
+            score = scoring.get_score(store,
+                                      request.phone,
+                                      request.email,
+                                      request.birthday,
+                                      request.gender,
+                                      request.first_name,
+                                      request.last_name)
 
-        ctx["has"] = [f for f in self._fields if getattr(self, f) is not None]
+        ctx["has"] = [f for f in request.fields if getattr(request, f) is not None]
         return {"score": score}, api.OK

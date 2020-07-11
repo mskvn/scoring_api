@@ -1,3 +1,4 @@
+import datetime
 import hashlib
 import json
 import logging
@@ -5,7 +6,7 @@ import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from optparse import OptionParser
 
-from requests import *
+from requests import OnlineScoreHandler, ClientsInterestsHandler, BaseRequest
 
 SALT = "Otus"
 ADMIN_SALT = "42"
@@ -46,10 +47,11 @@ def check_auth(request):
 
 def method_handler(request, ctx, store):
     methods_map = {
-        "online_score": OnlineScoreRequest,
-        "clients_interests": ClientsInterestsRequest,
+        "online_score": OnlineScoreHandler,
+        "clients_interests": ClientsInterestsHandler,
     }
     base_request = BaseRequest(request["body"])
+    base_request.validate()
     if not base_request.is_valid():
         return base_request.errors_str(), INVALID_REQUEST
     if not check_auth(base_request):
@@ -58,11 +60,10 @@ def method_handler(request, ctx, store):
     if not method:
         return "Method Not Found", NOT_FOUND
 
-    method_request = method(base_request.arguments)
-    if not method_request.is_valid():
-        return method_request.errors_str(), INVALID_REQUEST
-
-    response, code = method_request.do_request(base_request, ctx, store)
+    response, code = method().validate_handle(is_admin=base_request.is_admin,
+                                              request=method.request_type(base_request.arguments),
+                                              ctx=ctx,
+                                              store=store)
     return response, code
 
 
