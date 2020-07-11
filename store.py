@@ -10,5 +10,7 @@ class Store:
     def get(self, name):
         return self._client.get(name)
 
+    cache_get = get
+
     def cache_set(self, key, value, ttl):
         self._client.set(name=key, value=value, ex=ttl)

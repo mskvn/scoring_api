@@ -52,7 +52,7 @@ class RequestHandler:
         request.validate()
         if not request.is_valid():
             return request.errors_str(), api.INVALID_REQUEST
-        return self.handle(request, request, ctx, store)
+        return self.handle(is_admin, request, ctx, store)
 
     def handle(self, is_admin, request, ctx, store):
         return {}, api.OK
