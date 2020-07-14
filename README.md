@@ -4,7 +4,7 @@ API for calculating users interests and scores
 
 ## Requirements
 
-* python 3.6+
+* python 3.6
 
 ## Usage
 

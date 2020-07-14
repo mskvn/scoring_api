@@ -6,23 +6,12 @@ import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from optparse import OptionParser
 
-from requests import OnlineScoreHandler, ClientsInterestsHandler, BaseRequest
+from handlers import OnlineScoreHandler, ClientsInterestsHandler, BaseRequest
+from status_codes import ERRORS, INVALID_REQUEST, INTERNAL_ERROR, NOT_FOUND, BAD_REQUEST, FORBIDDEN, OK
+from store import Store
 
 SALT = "Otus"
 ADMIN_SALT = "42"
-OK = 200
-BAD_REQUEST = 400
-FORBIDDEN = 403
-NOT_FOUND = 404
-INVALID_REQUEST = 422
-INTERNAL_ERROR = 500
-ERRORS = {
-    BAD_REQUEST: "Bad Request",
-    FORBIDDEN: "Forbidden",
-    NOT_FOUND: "Not Found",
-    INVALID_REQUEST: "Invalid Request",
-    INTERNAL_ERROR: "Internal Server Error",
-}
 UNKNOWN = 0
 MALE = 1
 FEMALE = 2
@@ -71,6 +60,7 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
     router = {
         "method": method_handler
     }
+
     store = None
 
     def get_request_id(self, headers):
@@ -114,11 +104,16 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     op = OptionParser()
     op.add_option("-p", "--port", action="store", type=int, default=8080)
+    op.add_option("-a", "--address", action="store", type=str, default='localhost')
     op.add_option("-l", "--log", action="store", default=None)
+    op.add_option("--cache_host", action="store", type=str, default='localhost')
+    op.add_option("--cache_port", action="store", type=int, default=6379)
     (opts, args) = op.parse_args()
     logging.basicConfig(filename=opts.log, level=logging.INFO,
                         format='[%(asctime)s] %(levelname).1s %(message)s', datefmt='%Y.%m.%d %H:%M:%S')
-    server = HTTPServer(("localhost", opts.port), MainHTTPHandler)
+    store = Store(host=opts.cache_host, port=opts.cache_port)
+    MainHTTPHandler.store = store
+    server = HTTPServer((opts.address, opts.port), MainHTTPHandler)
     logging.info("Starting server at %s" % opts.port)
     try:
         server.serve_forever()
