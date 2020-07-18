@@ -11,7 +11,6 @@ class Store:
     def __init__(self, host='localhost', port=6379):
         pool = redis.ConnectionPool(host=host,
                                     port=port,
-                                    charset="utf-8",
                                     decode_responses=True,
                                     socket_timeout=self.SOCKET_TIMEOUT)
         self._client = redis.Redis(connection_pool=pool)
@@ -28,7 +27,7 @@ class Store:
             logging.error(str(e))
             return None
 
-    def cache_set(self, key, value, ttl):
+    def cache_set(self, key, value, ttl=None):
         try:
             self._client.set(name=key, value=value, ex=ttl)
         except Exception as e:

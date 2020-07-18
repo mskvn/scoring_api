@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch, Mock
 
 import api
-import requests
+import handlers
 from tests.decorators import cases
 
 
@@ -22,7 +22,7 @@ class TestSuite(unittest.TestCase):
         return api.method_handler({"body": request, "headers": self.headers}, self.context, store)
 
     def set_valid_auth(self, request):
-        if request.get("login") == requests.ADMIN_LOGIN:
+        if request.get("login") == handlers.ADMIN_LOGIN:
             msg = (datetime.datetime.now().strftime("%Y%m%d%H") + api.ADMIN_SALT).encode('utf-8')
             request["token"] = hashlib.sha512(msg).hexdigest()
         else:

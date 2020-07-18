@@ -56,15 +56,32 @@ def method_handler(request, ctx, store):
     return response, code
 
 
+def health_handler():
+    return '', OK
+
+
 class MainHTTPHandler(BaseHTTPRequestHandler):
     router = {
-        "method": method_handler
+        "method": method_handler,
+        "_health": health_handler
     }
 
     store = None
 
     def get_request_id(self, headers):
         return headers.get('HTTP_X_REQUEST_ID', uuid.uuid4().hex)
+
+    def do_GET(self):
+        response, code = '', OK
+        path = self.path.strip("/")
+        if path in self.router:
+            response, code = self.router[self.path.strip("/")]()
+        else:
+            code = NOT_FOUND
+        self.send_response(code)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write(response.encode('utf-8'))
 
     def do_POST(self):
         response, code = {}, OK

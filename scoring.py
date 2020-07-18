@@ -1,6 +1,8 @@
 import hashlib
 import json
 
+SCORE_TTL = 60 * 60
+
 
 def get_score(store, phone, email, birthday=None, gender=None, first_name=None, last_name=None):
     key_parts = [
@@ -14,7 +16,7 @@ def get_score(store, phone, email, birthday=None, gender=None, first_name=None, 
     # fallback to heavy calculation in case of cache miss
     score = store.cache_get(key) or 0
     if score:
-        return score
+        return float(score)
     if phone:
         score += 1.5
     if email:
@@ -24,7 +26,7 @@ def get_score(store, phone, email, birthday=None, gender=None, first_name=None, 
     if first_name and last_name:
         score += 0.5
     # cache for 60 minutes
-    store.cache_set(key, score, 60 * 60)
+    store.cache_set(key, score, SCORE_TTL)
     return score
 
 

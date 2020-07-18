@@ -1,4 +1,6 @@
 import functools
+import sys
+
 
 def cases(cases):
     def decorator(f):
