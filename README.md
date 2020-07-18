@@ -5,6 +5,8 @@ API for calculating users interests and scores
 ## Requirements
 
 * python 3.6
+* docker (for integration tests)
+* all libs from requirements.txt
 
 ## Usage
 
@@ -84,3 +86,16 @@ Response
 }
 ```
 
+## Development
+
+### Run unit tests
+
+```shell script
+python -m unittest tests.unit.test
+```
+
+### Run integration tests
+
+```shell script
+python -m unittest tests.integration.test
+```
