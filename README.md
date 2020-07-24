@@ -91,7 +91,7 @@ Response
 ### Run unit tests
 
 ```shell script
-python -m unittest tests.unit.test
+python -m unittest discover tests/unit/ -p *_test.py
 ```
 
 ### Run integration tests

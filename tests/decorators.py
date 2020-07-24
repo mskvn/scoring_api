@@ -1,4 +1,5 @@
 import functools
+import logging
 import sys
 
 
@@ -11,8 +12,7 @@ def cases(cases):
                 try:
                     f(*new_args)
                 except Exception as e:
-                    raise type(e)(str(e) + f'\nFailed example: {new_args[1]}'
-                                  ).with_traceback(sys.exc_info()[2])
+                    raise Exception(f'Failed example: {new_args[1]}').with_traceback(e.__traceback__)
 
         return wrapper
 

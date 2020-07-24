@@ -9,7 +9,7 @@ import handlers
 from tests.decorators import cases
 
 
-class TestSuite(unittest.TestCase):
+class ApiTest(unittest.TestCase):
     def setUp(self):
         self.context = {}
         self.headers = {}
