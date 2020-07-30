@@ -42,6 +42,7 @@ class Store:
         value = self.cache_get(name)
         if not value:
             raise StoreGetException(f"Can not get value from store by key {name}")
+        return value
 
     def cache_get(self, name):
         try:

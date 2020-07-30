@@ -7,6 +7,7 @@ import requests
 from docker.errors import NotFound
 
 from store import Store
+from tests.integration.docker_utils import remove_containers
 
 
 class TestSuite(unittest.TestCase):
@@ -18,7 +19,7 @@ class TestSuite(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.remove_containers(['scoring_api', 'redis'])
+        remove_containers(['scoring_api', 'redis'])
         cls.docker_client.containers.run(image='redis:alpine',
                                          name='redis',
                                          ports={6379: 6379},
@@ -50,17 +51,7 @@ class TestSuite(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        cls.remove_containers(['scoring_api', 'redis'])
-
-    @classmethod
-    def remove_containers(clas, containers):
-        for container_name in containers:
-            try:
-                container = clas.docker_client.containers.get(container_name)
-                container.stop()
-                container.remove(force=True)
-            except NotFound:
-                print(f'Container {container_name} already removed')
+        remove_containers(['scoring_api', 'redis'])
 
     def test_ok_score_request(self):
         request_body = {

@@ -97,5 +97,5 @@ python -m unittest discover tests/unit/ -p *_test.py
 ### Run integration tests
 
 ```shell script
-python -m unittest tests.integration.test
+python -m unittest discover tests/integration/ -p *_test.py
 ```
