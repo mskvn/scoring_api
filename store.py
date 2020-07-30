@@ -8,21 +8,24 @@ from redis.exceptions import TimeoutError, ConnectionError
 from exceptions import StoreGetException
 
 
-def retry(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        tries, delay = 3, 0.5
-        while tries > 0:
-            try:
-                return f(*args, **kwargs)
-            except (TimeoutError, ConnectionError) as e:
-                msg = '{}, Retrying in {} seconds...'.format(e, delay)
-                logging.info(msg)
-                time.sleep(delay)
-                tries -= 1
-        return f(*args, **kwargs)
+def retry(tries=3, delay=0.5):
+    def deco_retry(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            local_tries, local_delay = tries, delay
+            while local_tries > 0:
+                try:
+                    return f(*args, **kwargs)
+                except (TimeoutError, ConnectionError) as e:
+                    msg = '{}, Retrying in {} seconds...'.format(e, local_delay)
+                    logging.info(msg)
+                    time.sleep(local_delay)
+                    local_tries -= 1
+            return f(*args, **kwargs)
 
-    return wrapper
+        return wrapper
+
+    return deco_retry
 
 
 class Store:
@@ -53,10 +56,10 @@ class Store:
         except Exception as e:
             logging.error(str(e))
 
-    @retry
+    @retry(tries=3)
     def set_with_retry(self, key, value, ttl=None):
         self._client.set(name=key, value=value, ex=ttl)
 
-    @retry
+    @retry(tries=3)
     def get_with_retry(self, name):
         return self._client.get(name)
