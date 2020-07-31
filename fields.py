@@ -74,6 +74,8 @@ class DateField(Field):
         super().validate(value)
         if not value:
             return
+        if not isinstance(value, str):
+            raise ValidationError(f'{self.name} must be a str')
         try:
             datetime.datetime.strptime(value, self.date_format)
         except ValueError:
@@ -95,7 +97,10 @@ class BirthDayField(DateField):
 class GenderField(Field):
 
     def validate(self, value):
-        super().validate(value)
+        if self.required and value is None:
+            raise ValidationError(f'{self.name} is required')
+        if not self.nullable and value is None:
+            raise ValidationError(f'{self.name} should not be empty')
         if not value:
             return
         valid_values = [0, 1, 2]

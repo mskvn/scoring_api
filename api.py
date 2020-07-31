@@ -6,23 +6,12 @@ import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from optparse import OptionParser
 
-from requests import OnlineScoreHandler, ClientsInterestsHandler, BaseRequest
+from handlers import OnlineScoreHandler, ClientsInterestsHandler, BaseRequest
+from status_codes import ERRORS, INVALID_REQUEST, INTERNAL_ERROR, NOT_FOUND, BAD_REQUEST, FORBIDDEN, OK
+from store import Store
 
 SALT = "Otus"
 ADMIN_SALT = "42"
-OK = 200
-BAD_REQUEST = 400
-FORBIDDEN = 403
-NOT_FOUND = 404
-INVALID_REQUEST = 422
-INTERNAL_ERROR = 500
-ERRORS = {
-    BAD_REQUEST: "Bad Request",
-    FORBIDDEN: "Forbidden",
-    NOT_FOUND: "Not Found",
-    INVALID_REQUEST: "Invalid Request",
-    INTERNAL_ERROR: "Internal Server Error",
-}
 UNKNOWN = 0
 MALE = 1
 FEMALE = 2
@@ -67,14 +56,32 @@ def method_handler(request, ctx, store):
     return response, code
 
 
+def health_handler():
+    return '', OK
+
+
 class MainHTTPHandler(BaseHTTPRequestHandler):
     router = {
-        "method": method_handler
+        "method": method_handler,
+        "_health": health_handler
     }
+
     store = None
 
     def get_request_id(self, headers):
         return headers.get('HTTP_X_REQUEST_ID', uuid.uuid4().hex)
+
+    def do_GET(self):
+        response, code = '', OK
+        path = self.path.strip("/")
+        if path in self.router:
+            response, code = self.router[self.path.strip("/")]()
+        else:
+            code = NOT_FOUND
+        self.send_response(code)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write(response.encode('utf-8'))
 
     def do_POST(self):
         response, code = {}, OK
@@ -114,11 +121,16 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     op = OptionParser()
     op.add_option("-p", "--port", action="store", type=int, default=8080)
+    op.add_option("-a", "--address", action="store", type=str, default='localhost')
     op.add_option("-l", "--log", action="store", default=None)
+    op.add_option("--cache_host", action="store", type=str, default='localhost')
+    op.add_option("--cache_port", action="store", type=int, default=6379)
     (opts, args) = op.parse_args()
     logging.basicConfig(filename=opts.log, level=logging.INFO,
                         format='[%(asctime)s] %(levelname).1s %(message)s', datefmt='%Y.%m.%d %H:%M:%S')
-    server = HTTPServer(("localhost", opts.port), MainHTTPHandler)
+    store = Store(host=opts.cache_host, port=opts.cache_port)
+    MainHTTPHandler.store = store
+    server = HTTPServer((opts.address, opts.port), MainHTTPHandler)
     logging.info("Starting server at %s" % opts.port)
     try:
         server.serve_forever()

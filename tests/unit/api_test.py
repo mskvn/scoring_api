@@ -1,36 +1,28 @@
 import datetime
-import functools
 import hashlib
+import json
 import unittest
+from unittest.mock import patch, Mock
 
 import api
-import requests
+import handlers
+from tests.decorators import cases
 
 
-def cases(cases):
-    def decorator(f):
-        @functools.wraps(f)
-        def wrapper(*args):
-            for c in cases:
-                new_args = args + (c if isinstance(c, tuple) else (c,))
-                f(*new_args)
-
-        return wrapper
-
-    return decorator
-
-
-class TestSuite(unittest.TestCase):
+class ApiTest(unittest.TestCase):
     def setUp(self):
         self.context = {}
         self.headers = {}
-        self.settings = {}
 
-    def get_response(self, request):
-        return api.method_handler({"body": request, "headers": self.headers}, self.context, self.settings)
+    def get_response(self, request, store=None):
+        if not store:
+            store = Mock()
+            store.cache_get.return_value = None
+            store.get.return_value = None
+        return api.method_handler({"body": request, "headers": self.headers}, self.context, store)
 
     def set_valid_auth(self, request):
-        if request.get("login") == requests.ADMIN_LOGIN:
+        if request.get("login") == handlers.ADMIN_LOGIN:
             msg = (datetime.datetime.now().strftime("%Y%m%d%H") + api.ADMIN_SALT).encode('utf-8')
             request["token"] = hashlib.sha512(msg).hexdigest()
         else:
@@ -131,15 +123,44 @@ class TestSuite(unittest.TestCase):
         {"client_ids": [1, 2], "date": "19.07.2017"},
         {"client_ids": [0]},
     ])
-    def test_ok_interests_request(self, arguments):
+    @patch('store.Store')
+    def test_ok_interests_request(self, arguments, store):
         request = {"account": "horns&hoofs", "login": "h&f", "method": "clients_interests", "arguments": arguments}
         self.set_valid_auth(request)
-        response, code = self.get_response(request)
+        store_mock = store()
+        store_mock.get.return_value = json.dumps(["cars", "pets"])
+        response, code = self.get_response(request, store_mock)
         self.assertEqual(api.OK, code, arguments)
         self.assertEqual(len(arguments["client_ids"]), len(response))
         self.assertTrue(all(v and isinstance(v, list) and all(isinstance(i, (bytes, str)) for i in v)
                             for v in response.values()))
         self.assertEqual(self.context.get("nclients"), len(arguments["client_ids"]))
+
+    @patch('store.Store')
+    def test_interests_request_store(self, store):
+        client_id = 1
+        client_interests = ["cars", "pets"]
+        arguments = {"client_ids": [client_id], "date": "19.07.2017"}
+        request = {"account": "horns&hoofs", "login": "h&f", "method": "clients_interests", "arguments": arguments}
+        store_mock = store()
+        store_mock.get.return_value = json.dumps(client_interests)
+        self.set_valid_auth(request)
+        response, code = self.get_response(request, store_mock)
+        self.assertEqual(api.OK, code, arguments)
+        self.assertEqual(response[str(client_id)], client_interests)
+
+    @patch('store.Store')
+    def test_score_request_store(self, store):
+        expected_score = 777
+        arguments = {"phone": "79175002040", "email": "stupnikov@otus.ru"}
+        request = {"account": "horns&hoofs", "login": "h&f", "method": "online_score", "arguments": arguments}
+        self.set_valid_auth(request)
+        store_mock = store()
+        store_mock.cache_get.return_value = expected_score
+        response, code = self.get_response(request, store_mock)
+        self.assertEqual(api.OK, code, arguments)
+        actual_score = response.get("score")
+        self.assertEqual(actual_score, expected_score)
 
 
 if __name__ == "__main__":

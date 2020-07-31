@@ -1,8 +1,8 @@
-import api
 import scoring
 from exceptions import ValidationError
 from fields import CharField, ArgumentsField, ClientIDsField, DateField, EmailField, GenderField, PhoneField, \
     BirthDayField, Field
+from status_codes import OK, INVALID_REQUEST
 
 ADMIN_LOGIN = "admin"
 
@@ -51,11 +51,11 @@ class RequestHandler:
     def validate_handle(self, is_admin, request, ctx, store):
         request.validate()
         if not request.is_valid():
-            return request.errors_str(), api.INVALID_REQUEST
-        return self.handle(request, request, ctx, store)
+            return request.errors_str(), INVALID_REQUEST
+        return self.handle(is_admin, request, ctx, store)
 
     def handle(self, is_admin, request, ctx, store):
-        return {}, api.OK
+        return {}, OK
 
 
 class ClientsInterestsRequest(Request):
@@ -71,7 +71,7 @@ class ClientsInterestsHandler(RequestHandler):
         for cid in request.client_ids:
             clients_interests[str(cid)] = scoring.get_interests(store, cid)
         ctx['nclients'] = len(request.client_ids)
-        return clients_interests, api.OK
+        return clients_interests, OK
 
 
 class OnlineScoreRequest(Request):
@@ -109,4 +109,4 @@ class OnlineScoreHandler(RequestHandler):
                                       request.last_name)
 
         ctx["has"] = [f for f in request.fields if getattr(request, f) is not None]
-        return {"score": score}, api.OK
+        return {"score": score}, OK
